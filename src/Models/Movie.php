@@ -79,21 +79,41 @@ class Movie extends Model
 
     /*
     |--------------------------------------------------------------------------
+    | Scopes
+    |--------------------------------------------------------------------------
+    */
+    public function scopeWithRatingsInfo($query)
+    {
+        return $query->with(['ratings' => function($q) {
+            $q->select('movie_id', 'rating', 'user_id');
+        }]);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
     | Accessors
     |--------------------------------------------------------------------------
     */
     public function getAverageRatingAttribute(): float
     {
-        return (float) (
-            $this->ratings()->avg(self::COLUMN_RATING)
-            ?? self::DEFAULT_RATING
-        );
+        if ($this->relationLoaded('ratings') && $this->ratings->isNotEmpty()) {
+            return (float) $this->ratings->avg('rating') ?? self::DEFAULT_RATING;
+        }
+
+        return (float) ($this->ratings()->avg(self::COLUMN_RATING) ?? self::DEFAULT_RATING);
     }
 
     public function getCurrentUserRatingAttribute(): int
     {
+        $userId = auth()->id();
+        
+        if ($this->relationLoaded('ratings') && $this->ratings->isNotEmpty()) {
+            $userRating = $this->ratings->firstWhere('user_id', $userId);
+            return $userRating ? $userRating->rating : self::DEFAULT_RATING;
+        }
+        
         return $this->ratings()
-            ->where(self::COLUMN_USER_ID, auth()->id())
+            ->where(self::COLUMN_USER_ID, $userId)
             ->value(self::COLUMN_RATING)
             ?: self::DEFAULT_RATING;
     }
