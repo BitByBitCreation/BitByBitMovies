@@ -151,7 +151,7 @@ class MovieTMDBRepository implements MovieRepositoryInterface
 
     private function getMovies(string $term, bool $strict = false): LengthAwarePaginator 
     {
-        $query = Movie::query();
+        $query = Movie::withRatingsInfo();
         
         if ($strict) {
             $query->where(function($q) use ($term) {
