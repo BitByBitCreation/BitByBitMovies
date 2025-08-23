@@ -53,7 +53,7 @@ class MovieSearch extends Component
 
         if (strlen($this->searchTerm) < self::CONFIG_MIN_SEARCH_LENGTH) {
             $movies = $user->ratedMovies()
-                ->with(['ratings' => fn($q) => $q->where(Movie::COLUMN_USER_ID, $user->id)])
+                ->withRatingsInfo()
                 ->paginate(self::CONFIG_PAGINATION_SIZE);
         } else {
             $movies = $repo->search($this->searchTerm);
