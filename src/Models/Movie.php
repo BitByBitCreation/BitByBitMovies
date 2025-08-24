@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -23,9 +24,6 @@ class Movie extends Model
     public const COLUMN_POSTER_URL        = 'poster_url';
     public const COLUMN_RELEASE_DATE      = 'release_date';
     public const COLUMN_ORIGINAL_LANGUAGE = 'original_language';
-    public const COLUMN_RATING            = 'rating';
-    public const COLUMN_USER_ID           = 'user_id';
-
 
     /*
     |--------------------------------------------------------------------------
@@ -44,10 +42,7 @@ class Movie extends Model
     |--------------------------------------------------------------------------
     */
     public const DEFAULT_RATING = 0;
-
-    public const DEFAULT_VALUES = [
-        self::COLUMN_RATING => self::DEFAULT_RATING,
-    ];
+    public const RELATION_RATINGS = 'ratings';
 
     /*
     |--------------------------------------------------------------------------
@@ -82,10 +77,10 @@ class Movie extends Model
     | Scopes
     |--------------------------------------------------------------------------
     */
-    public function scopeWithRatingsInfo($query)
+    public function scopeWithRatingsInfo($query): Builder
     {
-        return $query->with(['ratings' => function($q) {
-            $q->select('movie_id', 'rating', 'user_id');
+        return $query->with([self::RELATION_RATINGS => function($q) {
+            $q->select(Rating::COLUMN_MOVIE_ID, Rating::COLUMN_RATING, Rating::COLUMN_USER_ID);
         }]);
     }
 
@@ -96,25 +91,25 @@ class Movie extends Model
     */
     public function getAverageRatingAttribute(): float
     {
-        if ($this->relationLoaded('ratings') && $this->ratings->isNotEmpty()) {
-            return (float) $this->ratings->avg('rating') ?? self::DEFAULT_RATING;
+        if ($this->relationLoaded(self::RELATION_RATINGS) && $this->ratings->isNotEmpty()) {
+            return (float) $this->ratings->avg(Rating::COLUMN_RATING) ?? self::DEFAULT_RATING;
         }
 
-        return (float) ($this->ratings()->avg(self::COLUMN_RATING) ?? self::DEFAULT_RATING);
+        return (float) ($this->ratings()->avg(Rating::COLUMN_RATING) ?? self::DEFAULT_RATING);
     }
 
     public function getCurrentUserRatingAttribute(): int
     {
         $userId = auth()->id();
         
-        if ($this->relationLoaded('ratings') && $this->ratings->isNotEmpty()) {
-            $userRating = $this->ratings->firstWhere('user_id', $userId);
+        if ($this->relationLoaded(self::RELATION_RATINGS) && $this->ratings->isNotEmpty()) {
+            $userRating = $this->ratings->firstWhere(Rating::COLUMN_USER_ID, $userId);
             return $userRating ? $userRating->rating : self::DEFAULT_RATING;
         }
         
         return $this->ratings()
-            ->where(self::COLUMN_USER_ID, $userId)
-            ->value(self::COLUMN_RATING)
+            ->where(Rating::COLUMN_USER_ID, $userId)
+            ->value(Rating::COLUMN_RATING)
             ?: self::DEFAULT_RATING;
     }
 }
